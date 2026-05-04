@@ -1,6 +1,5 @@
 <html>
-<head>
-    <script type="module" src="/plugins/human_in_the_loop/webui/hitl_store.js?v=8"></script>
+    <script type="module" src="/plugins/human_in_the_loop/webui/hitl_store.js?v=6"></script>
     <title>Multi-Step Input</title>
     <style>
         .hitl-tabs { display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px; flex-wrap: wrap; }
@@ -22,70 +21,68 @@
     </style>
 </head>
 <body>
-    <div x-data x-cloak>
+    <div x-data>
         <template x-if="$store.hitlStore">
             <div x-init="$store.hitlStore.onOpen?.()">
-                <div x-show="!$store.hitlStore.loading && !$store.hitlStore.closing">
-                    <div class="hitl-tabs">
-                        <template x-for="(q, idx) in $store.hitlStore.questions" :key="q.id">
-                            <div class="hitl-tab" 
-                                 :class="idx === $store.hitlStore.currentTab ? 'active' : ($store.hitlStore.answers[q.id] ? 'answered' : '')"
-                                 @click="$store.hitlStore.currentTab = idx">
-                                Q<template x-text="idx + 1"></template>
-                            </div>
-                        </template>
+                <div class="hitl-tabs">
+                    <template x-for="(q, idx) in $store.hitlStore.questions" :key="q.id">
                         <div class="hitl-tab" 
-                             :class="$store.hitlStore.currentTab === $store.hitlStore.questions.length ? 'active' : ''"
-                             @click="$store.hitlStore.currentTab = $store.hitlStore.questions.length">
-                            Confirm
+                             :class="idx === $store.hitlStore.currentTab ? 'active' : ($store.hitlStore.answers[q.id] ? 'answered' : '')"
+                             @click="$store.hitlStore.currentTab = idx">
+                           Q<template x-text="idx + 1"></template>
                         </div>
+                    </template>
+                    <div class="hitl-tab" 
+                         :class="$store.hitlStore.currentTab === $store.hitlStore.questions.length ? 'active' : ''"
+                         @click="$store.hitlStore.currentTab = $store.hitlStore.questions.length">
+                        Confirm
                     </div>
+                </div>
 
-                    <template x-if="$store.hitlStore.currentTab < $store.hitlStore.questions.length">
-                        <div>
-                            <p class="hitl-question" x-text="$store.hitlStore.questions[$store.hitlStore.currentTab].question"></p>
-                            <div class="hitl-options">
-                                <template x-for="opt in $store.hitlStore.questions[$store.hitlStore.currentTab].options || []" :key="opt">
-                                     <div class="hitl-option" 
-                                          :class="{'hitl-option-selected': $store.hitlStore.isAnswered($store.hitlStore.questions[$store.hitlStore.currentTab].id, opt)}"
-                                          @click="$store.hitlStore.submitAnswer($store.hitlStore.questions[$store.hitlStore.currentTab].id, opt)">
-                                        <span x-text="opt"></span>
-                                    </div>
-                                </template>
-                            </div>
-                            <template x-if="$store.hitlStore.questions[$store.hitlStore.currentTab].allow_text">
-                                <input class="hitl-text" type="text" placeholder="Or type your answer..." 
-                                       x-model="$store.hitlStore.answers[$store.hitlStore.questions[$store.hitlStore.currentTab].id]"
-                                       @blur="$store.hitlStore.submitAnswer($store.hitlStore.questions[$store.hitlStore.currentTab].id, $event.target.value)">
+                <template x-if="$store.hitlStore.currentTab < $store.hitlStore.questions.length">
+                    <div>
+                        <p class="hitl-question" x-text="$store.hitlStore.questions[$store.hitlStore.currentTab].question"></p>
+                        <div class="hitl-options">
+                            <template x-for="opt in $store.hitlStore.questions[$store.hitlStore.currentTab].options || []" :key="opt">
+                                 <div class="hitl-option" 
+                                      :class="{'hitl-option-selected': $store.hitlStore.isAnswered($store.hitlStore.questions[$store.hitlStore.currentTab].id, opt)}"
+                                      @click="$store.hitlStore.submitAnswer($store.hitlStore.questions[$store.hitlStore.currentTab].id, opt)">
+                                   <span x-text="opt"></span>
+                               </div>
+                           </template>
+                        </div>
+                        <template x-if="$store.hitlStore.questions[$store.hitlStore.currentTab].allow_text">
+                            <input class="hitl-text" type="text" placeholder="Or type your answer..." 
+                                   x-model="$store.hitlStore.answers[$store.hitlStore.questions[$store.hitlStore.currentTab].id]"
+                                   @blur="$store.hitlStore.submitAnswer($store.hitlStore.questions[$store.hitlStore.currentTab].id, $event.target.value)">
+                        </template>
+                    </div>
+                </template>
+                <template x-if="$store.hitlStore.currentTab === $store.hitlStore.questions.length">
+                    <div>
+                        <p class="hitl-question">Confirm your answers</p>
+                        <div class="hitl-options">
+                            <template x-for="(q, idx) in $store.hitlStore.questions" :key="q.id">
+                                <div class="hitl-option" style="cursor: default;">
+                                    <strong>Q<template x-text="idx + 1"></template>: </strong>
+                                    <span x-text="$store.hitlStore.questions[idx].question"></span><br>
+                                    <span style="color: #3b82f6; font-weight: 500;" x-text="$store.hitlStore.answers[q.id] || 'No answer'"></span>
+                                </div>
                             </template>
                         </div>
-                    </template>
-                    <template x-if="$store.hitlStore.currentTab === $store.hitlStore.questions.length">
-                        <div>
-                            <p class="hitl-question">Confirm your answers</p>
-                            <div class="hitl-options">
-                                <template x-for="(q, idx) in $store.hitlStore.questions" :key="q.id">
-                                    <div class="hitl-option" style="cursor: pointer;" @click="$store.hitlStore.currentTab = idx">
-                                        <strong>Q<template x-text="idx + 1"></template>: </strong>
-                                        <span x-text="$store.hitlStore.questions[idx].question"></span><br>
-                                        <span style="color: #3b82f6; font-weight: 500;" x-text="$store.hitlStore.answers[q.id] || 'No answer'"></span>
-                                    </div>
-                                </template>
-                            </div>
-                        </div>
-                    </template>
-
-                    <div class="hitl-nav">
-                        <button class="hitl-btn hitl-btn-back" 
-                                @click="$store.hitlStore.currentTab = Math.max(0, $store.hitlStore.currentTab - 1)"
-                                :disabled="$store.hitlStore.currentTab === 0">Back</button>
-                        <button class="hitl-btn hitl-btn-next" 
-                                @click="$store.hitlStore.currentTab = Math.min($store.hitlStore.questions.length, $store.hitlStore.currentTab + 1)"
-                                x-show="$store.hitlStore.currentTab < $store.hitlStore.questions.length">Next</button>
-                        <button class="hitl-btn hitl-btn-finish" 
-                                @click="$store.hitlStore.finalize()"
-                                x-show="$store.hitlStore.currentTab === $store.hitlStore.questions.length">Submit All</button>
                     </div>
+                </template>
+
+                <div class="hitl-nav">
+                    <button class="hitl-btn hitl-btn-back" 
+                            @click="$store.hitlStore.currentTab = Math.max(0, $store.hitlStore.currentTab - 1)"
+                            :disabled="$store.hitlStore.currentTab === 0">Back</button>
+                    <button class="hitl-btn hitl-btn-next" 
+                            @click="$store.hitlStore.currentTab = Math.min($store.hitlStore.questions.length, $store.hitlStore.currentTab + 1)"
+                            x-show="$store.hitlStore.currentTab < $store.hitlStore.questions.length">Next</button>
+                    <button class="hitl-btn hitl-btn-finish" 
+                            @click="$store.hitlStore.finalize()"
+                            x-show="$store.hitlStore.currentTab === $store.hitlStore.questions.length">Submit All</button>
                 </div>
             </div>
         </template>
