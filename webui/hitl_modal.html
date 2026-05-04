@@ -23,7 +23,7 @@
 <body>
     <div x-data>
         <template x-if="$store.hitlStore">
-            <div x-init="$store.hitlStore.onOpen?.()">
+            <div x-init="$store.hitlStore.onOpen?.()" x-show="$store.hitlStore.state === 'active'">
                 <div class="hitl-tabs">
                     <template x-for="(q, idx) in $store.hitlStore.questions" :key="q.id">
                         <div class="hitl-tab" 
@@ -63,7 +63,7 @@
                         <p class="hitl-question">Confirm your answers</p>
                         <div class="hitl-options">
                             <template x-for="(q, idx) in $store.hitlStore.questions" :key="q.id">
-                                <div class="hitl-option" style="cursor: default;">
+                                <div class="hitl-option" style="cursor: pointer;" @click="$store.hitlStore.currentTab = idx">
                                     <strong>Q<template x-text="idx + 1"></template>: </strong>
                                     <span x-text="$store.hitlStore.questions[idx].question"></span><br>
                                     <span style="color: #3b82f6; font-weight: 500;" x-text="$store.hitlStore.answers[q.id] || 'No answer'"></span>

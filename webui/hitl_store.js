@@ -1,62 +1,65 @@
 import { createStore } from "/js/AlpineStore.js";
 
 export const store = createStore("hitlStore", {
-    state: 'idle', // idle, active, submitting, closing
+    state: 'idle',
     questions: [],
     answers: {},
     currentTab: 0,
+    loading: true,
+    closing: false,
     interval: null,
 
     init() {
-        // console.log("[HITL] Store initialized. Waiting for globals...");
+        let retries = 0;
+        const maxRetries = 20;
         const checkGlobals = () => {
-            if (typeof window.openModal === 'undefined' || typeof window.getContext === 'undefined') {
+            if (typeof window.openModal !== 'undefined' && typeof window.getContext !== 'undefined') {
+                this.startIdlePolling();
+            } else if (retries < maxRetries) {
+                retries++;
                 setTimeout(checkGlobals, 500);
-                return;
             }
-            // console.log("[HITL] Globals ready. Starting polling...");
-            this.interval = setInterval(() => this.pollStatus(), 1000);
         };
-        checkGlobals();
     },
 
-    pollStatus() {
+    onOpen() {
+        this.checkForPending();
+    },
+    },
+
+    startIdlePolling() {
+        this.stopPolling();
+        this.interval = setInterval(() => this.checkForPending(), 2000);
+    },
+
+    stopPolling() {
+        if (this.interval) clearInterval(this.interval);
+        this.interval = null;
+    },
+
+    async checkForPending() {
+        if (this.state !== 'idle') return;
         const ctxId = window.getContext?.() || null;
         if (!ctxId) return;
 
-        fetch(`/api/plugins/human_in_the_loop/hitl_status`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ context_id: ctxId })
-        })
-        .then(res => res.json())
-        .then(data => {
-            const hasPending = data.ok && data.pending;
-            const isDone = data.complete === true || (Array.isArray(data.pending) && data.pending.length === 0);
-
-            if (this.state === 'idle' && hasPending) {
-                // console.log("[HITL] Pending questions detected. Opening modal.");
-                // console.log("[HITL] Raw pending data:", data.pending);
-                this.questions = (Array.isArray(data.pending) ? data.pending : []).map((q, i) => {
-                    const id = q?.id || `q_${i}`;
-                    // console.log(`[HITL] Assigned ID ${id} to question ${i}`);
-                    return { ...q, id };
-                });
+        try {
+            const res = await fetch(`/api/plugins/human_in_the_loop/hitl_status`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ context_id: ctxId })
+            });
+            const data = await res.json();
+            if (data.ok && data.pending && Array.isArray(data.pending) && data.pending.length > 0) {
+                this.questions = data.pending.map((q, i) => ({ ...q, id: q?.id || `q_${i}` }));
                 this.answers = data.answers || {};
-                this.currentTab = 0;
+                this.loading = false;
                 this.state = 'active';
+                this.stopPolling();
                 window.openModal(`/plugins/human_in_the_loop/webui/hitl_modal.html?v=${Date.now()}`);
-            } else if ((this.state === 'active' || this.state === 'submitting') && isDone) {
-                // console.log("[HITL] Task complete or no longer pending. Closing modal.");
-                this.state = 'closing';
-                window.closeModal?.();
-                this.cleanup();
-            } else if (this.state === 'closing' && !hasPending && !data.complete) {
-                // console.log("[HITL] Backend cleared. Resetting to idle.");
-                this.state = 'idle';
             }
-        })
-        .catch(err => console.error("[HITL] Poll error:", err));
+        } catch (err) {
+            console.error("[HITL] Poll error:", err);
+        }
     },
 
     submitAnswer(qId, answer) {
@@ -64,45 +67,52 @@ export const store = createStore("hitlStore", {
         if (!ctxId) return;
         if (answer === null || answer === undefined || answer === '') return;
         
-        // console.log(`[HITL] Submitting answer for ${qId}:`, answer);
         this.answers = { ...this.answers, [qId]: answer };
 
         fetch(`/api/plugins/human_in_the_loop/hitl_submit`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ context_id: ctxId, question_id: qId, answer: answer })
-        }).then(res => res.json()).catch(console.error);
+        }).catch(console.error);
         
         if (this.currentTab < this.questions.length) {
             this.currentTab = Math.min(this.currentTab + 1, this.questions.length);
         }
     },
 
-    finalize() {
+    async finalize() {
         const ctxId = window.getContext?.() || null;
         if (!ctxId) return;
         
         const q = this.questions[this.currentTab];
         if (q && this.answers[q.id]) {
-             this.submitAnswer(q.id, this.answers[q.id]);
+            this.submitAnswer(q.id, this.answers[q.id]);
         }
 
-        this.state = 'submitting';
-        // console.log("[HITL] Finalizing submission.");
-        fetch(`/api/plugins/human_in_the_loop/hitl_submit`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ context_id: ctxId, finalize: true })
-        }).then(res => res.json()).catch(console.error);
+        this.state = 'closing';
+        try {
+            await fetch(`/api/plugins/human_in_the_loop/hitl_submit`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ context_id: ctxId, finalize: true })
+            });
+            window.closeModal?.();
+            this.cleanup();
+            this.state = 'idle';
+            this.startIdlePolling();
+        } catch (err) {
+            console.error("[HITL] Finalize error:", err);
+            this.state = 'active';
+        }
     },
 
     cleanup() {
-        clearInterval(this.interval);
-        this.interval = null;
+        this.stopPolling();
         this.questions = [];
         this.answers = {};
         this.currentTab = 0;
-        this.state = 'idle';
+        this.loading = true;
+        this.closing = false;
     },
 
     isAnswered(qId, opt) {
