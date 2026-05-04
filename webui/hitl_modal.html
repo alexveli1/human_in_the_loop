@@ -1,5 +1,5 @@
 <html>
-    <script type="module" src="/plugins/human_in_the_loop/webui/hitl_store.js?v=6"></script>
+    <script type="module" src="/plugins/human_in_the_loop/webui/hitl_store.js?v=7"></script>
     <title>Multi-Step Input</title>
     <style>
         .hitl-tabs { display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px; flex-wrap: wrap; }
@@ -24,6 +24,7 @@
     <div x-data>
         <template x-if="$store.hitlStore">
             <div x-init="$store.hitlStore.onOpen?.()">
+                <template x-if="!$store.hitlStore.loading && !$store.hitlStore.closing">
                 <div class="hitl-tabs">
                     <template x-for="(q, idx) in $store.hitlStore.questions" :key="q.id">
                         <div class="hitl-tab" 
@@ -84,6 +85,7 @@
                             @click="$store.hitlStore.finalize()"
                             x-show="$store.hitlStore.currentTab === $store.hitlStore.questions.length">Submit All</button>
                 </div>
+                </template>
             </div>
         </template>
     </div>
