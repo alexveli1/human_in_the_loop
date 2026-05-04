@@ -1,0 +1,91 @@
+<html>
+    <script type="module" src="/plugins/human_in_the_loop/webui/hitl_store.js?v=6"></script>
+    <title>Multi-Step Input</title>
+    <style>
+        .hitl-tabs { display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px; flex-wrap: wrap; }
+        .hitl-tab { padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.9em; background: #f3f4f6; color: black; transition: 0.2s; }
+        .hitl-tab:hover { background: #e5e7eb; color: black !important; }
+        .hitl-tab.active { background: #3b82f6; color: white; }
+        .hitl-tab.answered { background: #10b981; color: white; }
+        .hitl-question { font-size: 1.2em; font-weight: 600; margin-bottom: 16px; transition: color 0.2s; }
+        .hitl-options { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+        .hitl-option { padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; cursor: pointer; transition: 0.2s; }
+        .hitl-option:hover { background: #dbeafe !important; border-color: #2563eb !important; color: #1e40af !important; font-weight: 500; }
+        .hitl-option-selected { background: #dbeafe !important; border-color: #2563eb !important; color: #1e40af !important; font-weight: 600 !important; }
+        .hitl-text { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; margin-top: 8px; box-sizing: border-box; }
+        .hitl-nav { display: flex; justify-content: space-between; margin-top: 20px; }
+        .hitl-btn { padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-weight: 500; }
+        .hitl-btn-back { background: #e5e7eb; color: #374151; }
+        .hitl-btn-next { background: #3b82f6; color: white; }
+        .hitl-btn-finish { background: #10b981; color: white; }
+    </style>
+</head>
+<body>
+    <div x-data>
+        <template x-if="$store.hitlStore">
+            <div x-init="$store.hitlStore.onOpen?.()">
+                <div class="hitl-tabs">
+                    <template x-for="(q, idx) in $store.hitlStore.questions" :key="q.id">
+                        <div class="hitl-tab" 
+                             :class="idx === $store.hitlStore.currentTab ? 'active' : ($store.hitlStore.answers[q.id] ? 'answered' : '')"
+                             @click="$store.hitlStore.currentTab = idx">
+                           Q<template x-text="idx + 1"></template>
+                        </div>
+                    </template>
+                    <div class="hitl-tab" 
+                         :class="$store.hitlStore.currentTab === $store.hitlStore.questions.length ? 'active' : ''"
+                         @click="$store.hitlStore.currentTab = $store.hitlStore.questions.length">
+                        Confirm
+                    </div>
+                </div>
+
+                <template x-if="$store.hitlStore.currentTab < $store.hitlStore.questions.length">
+                    <div>
+                        <p class="hitl-question" x-text="$store.hitlStore.questions[$store.hitlStore.currentTab].question"></p>
+                        <div class="hitl-options">
+                            <template x-for="opt in $store.hitlStore.questions[$store.hitlStore.currentTab].options || []" :key="opt">
+                                 <div class="hitl-option" 
+                                      :class="{'hitl-option-selected': $store.hitlStore.isAnswered($store.hitlStore.questions[$store.hitlStore.currentTab].id, opt)}"
+                                      @click="$store.hitlStore.submitAnswer($store.hitlStore.questions[$store.hitlStore.currentTab].id, opt)">
+                                   <span x-text="opt"></span>
+                               </div>
+                           </template>
+                        </div>
+                        <template x-if="$store.hitlStore.questions[$store.hitlStore.currentTab].allow_text">
+                            <input class="hitl-text" type="text" placeholder="Or type your answer..." 
+                                   x-model="$store.hitlStore.answers[$store.hitlStore.questions[$store.hitlStore.currentTab].id]"
+                                   @blur="$store.hitlStore.submitAnswer($store.hitlStore.questions[$store.hitlStore.currentTab].id, $event.target.value)">
+                        </template>
+                    </div>
+                </template>
+                <template x-if="$store.hitlStore.currentTab === $store.hitlStore.questions.length">
+                    <div>
+                        <p class="hitl-question">Confirm your answers</p>
+                        <div class="hitl-options">
+                            <template x-for="(q, idx) in $store.hitlStore.questions" :key="q.id">
+                                <div class="hitl-option" style="cursor: pointer;" @click="$store.hitlStore.currentTab = idx">
+                                    <strong>Q<template x-text="idx + 1"></template>: </strong>
+                                    <span x-text="$store.hitlStore.questions[idx].question"></span><br>
+                                    <span style="color: #3b82f6; font-weight: 500;" x-text="$store.hitlStore.answers[q.id] || 'No answer'"></span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+
+                <div class="hitl-nav">
+                    <button class="hitl-btn hitl-btn-back" 
+                            @click="$store.hitlStore.currentTab = Math.max(0, $store.hitlStore.currentTab - 1)"
+                            :disabled="$store.hitlStore.currentTab === 0">Back</button>
+                    <button class="hitl-btn hitl-btn-next" 
+                            @click="$store.hitlStore.currentTab = Math.min($store.hitlStore.questions.length, $store.hitlStore.currentTab + 1)"
+                            x-show="$store.hitlStore.currentTab < $store.hitlStore.questions.length">Next</button>
+                    <button class="hitl-btn hitl-btn-finish" 
+                            @click="$store.hitlStore.finalize()"
+                            x-show="$store.hitlStore.currentTab === $store.hitlStore.questions.length">Submit All</button>
+                </div>
+            </div>
+        </template>
+    </div>
+</body>
+</html>

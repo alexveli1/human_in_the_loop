@@ -1,0 +1,7 @@
+name: human_in_the_loop
+title: Human in the Loop
+description: Allows the agent to pause and ask the user for a decision via a popup.
+version: 1.0.0
+settings_sections: []
+per_project_config: false
+per_agent_config: false
